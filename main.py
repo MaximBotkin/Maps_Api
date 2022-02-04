@@ -14,7 +14,7 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         super().__init__()
 
         uic.loadUi('uic.ui', self)
-        self.setWindowTitle('Программа для учета финансов')
+        self.setWindowTitle('Map API')
         self.setFixedSize(self.size())
 
         self.btn_group = QButtonGroup()
@@ -23,7 +23,7 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         self.btn_group.addButton(self.rb3)
 
         self.file_name = 'map.png'
-        self.m = 6
+        self.m = 10
         self.delta = 1
         self.coords = [37.620070, 55.753630]
         self.pt = ''
@@ -31,6 +31,7 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         self.l_map = self.map_type['Схема']
 
         self.btn_group.buttonClicked.connect(self.change_map_type)
+        self.search_btn.clicked.connect(self.search_pt)
         self.map_update()
 
     def save_image(self, response):
@@ -46,12 +47,32 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
             self.l_map = self.map_type['Гибрид']
         self.map_update()
 
+    def search_pt(self):
+        adress = self.search_text.text()
+        geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
+
+        geocoder_params = {
+            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+            "geocode": adress,
+            "format": "json"}
+
+        json_response = requests.get(geocoder_api_server, geocoder_params).json()
+        geo_object = json_response["response"]["GeoObjectCollection"][
+            "featureMember"][0]["GeoObject"]
+        obj_long, obj_lat = geo_object["Point"]["pos"].split(' ')
+        self.coords = [float(obj_long), float(obj_lat)]
+        self.m = 14
+        self.pt = f'{obj_long},{obj_lat},flag'
+
+        self.map_update()
+
     def static_map_request(self):
         server = "http://static-maps.yandex.ru/1.x/"
         map_params = {
             "ll": ','.join(list(map(str, self.coords))),
             "l": self.l_map,
             'z': str(self.m),
+            'pt': self.pt
         }
         response = requests.get(server, map_params)
         return response
@@ -70,7 +91,6 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
             sys.exit(1)
 
     def keyPressEvent(self, event):
-        print(event.key())
         if event.key() == 16777238:
             if self.m > 0:
                 self.m -= 1
