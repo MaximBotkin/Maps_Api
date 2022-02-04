@@ -32,6 +32,7 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
 
         self.btn_group.buttonClicked.connect(self.change_map_type)
         self.search_btn.clicked.connect(self.search_pt)
+        self.reset_btn.clicked.connect(self.reset)
         self.map_update()
 
     def save_image(self, response):
@@ -64,7 +65,35 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         self.m = 14
         self.pt = f'{obj_long},{obj_lat},flag'
 
+        self.get_adress()
         self.map_update()
+
+    def reset(self):
+        self.search_text.setText('')
+        self.pt = ''
+        self.adress_name.setText('Адрес:')
+        self.map_update()
+
+    def get_adress(self):
+        server = 'http://geocode-maps.yandex.ru/1.x/'
+
+        geocoder_params = {
+            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+            "geocode": ','.join(list(map(str, self.coords))),
+            "format": "json"}
+
+        response = requests.get(server, params=geocoder_params)
+
+        if response:
+            json_response = response.json()
+            toponym_adress = \
+            json_response["response"]['GeoObjectCollection']["featureMember"][0]["GeoObject"]["metaDataProperty"][
+                "GeocoderMetaData"]["text"]
+            self.adress_name.setText(f'Адрес: {toponym_adress}')
+        else:
+            print("Ошибка выполнения запроса")
+            print("Http статус:", response.status_code, "(", response.reason, ")")
+            sys.exit(1)
 
     def static_map_request(self):
         server = "http://static-maps.yandex.ru/1.x/"
