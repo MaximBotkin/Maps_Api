@@ -29,10 +29,12 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         self.pt = ''
         self.map_type = {'Схема': 'map', 'Спутник': 'sat', 'Гибрид': 'sat,skl'}
         self.l_map = self.map_type['Схема']
+        self.postal_code = False
 
         self.btn_group.buttonClicked.connect(self.change_map_type)
         self.search_btn.clicked.connect(self.search_pt)
         self.reset_btn.clicked.connect(self.reset)
+        self.check_postal.clicked.connect(self.check_post)
         self.map_update()
 
     def save_image(self, response):
@@ -49,24 +51,27 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         self.map_update()
 
     def search_pt(self):
-        adress = self.search_text.text()
-        geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
+        try:
+            adress = self.search_text.text()
+            geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
 
-        geocoder_params = {
-            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
-            "geocode": adress,
-            "format": "json"}
+            geocoder_params = {
+                "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+                "geocode": adress,
+                "format": "json"}
 
-        json_response = requests.get(geocoder_api_server, geocoder_params).json()
-        geo_object = json_response["response"]["GeoObjectCollection"][
-            "featureMember"][0]["GeoObject"]
-        obj_long, obj_lat = geo_object["Point"]["pos"].split(' ')
-        self.coords = [float(obj_long), float(obj_lat)]
-        self.m = 14
-        self.pt = f'{obj_long},{obj_lat},flag'
+            json_response = requests.get(geocoder_api_server, geocoder_params).json()
+            geo_object = json_response["response"]["GeoObjectCollection"][
+                "featureMember"][0]["GeoObject"]
+            obj_long, obj_lat = geo_object["Point"]["pos"].split(' ')
+            self.coords = [float(obj_long), float(obj_lat)]
+            self.m = 14
+            self.pt = f'{obj_long},{obj_lat},flag'
 
-        self.get_adress()
-        self.map_update()
+            self.get_adress()
+            self.map_update()
+        except Exception as e:
+            self.adress_name.setText(f'Адрес: ')
 
     def reset(self):
         self.search_text.setText('')
@@ -85,15 +90,41 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
         response = requests.get(server, params=geocoder_params)
 
         if response:
-            json_response = response.json()
-            toponym_adress = \
-            json_response["response"]['GeoObjectCollection']["featureMember"][0]["GeoObject"]["metaDataProperty"][
-                "GeocoderMetaData"]["text"]
-            self.adress_name.setText(f'Адрес: {toponym_adress}')
+            try:
+                json_response = response.json()
+                toponym = \
+                    json_response["response"]['GeoObjectCollection']["featureMember"][0]["GeoObject"][
+                        "metaDataProperty"][
+                        "GeocoderMetaData"]
+                if self.postal_code:
+                    toponym_adress = toponym['text']
+                    toponym_post = \
+                        toponym["AddressDetails"]["Country"]["AdministrativeArea"]["Locality"]["Thoroughfare"][
+                            "Premise"][
+                            "PostalCode"]["PostalCodeNumber"]
+                    self.adress_name.setText(f'Адрес: {toponym_adress}, {toponym_post}')
+                else:
+                    toponym_adress = toponym['text']
+                    self.adress_name.setText(f'Адрес: {toponym_adress}')
+            except Exception:
+                json_response = response.json()
+                toponym = \
+                    json_response["response"]['GeoObjectCollection']["featureMember"][0]["GeoObject"][
+                        "metaDataProperty"][
+                        "GeocoderMetaData"]
+                toponym_adress = toponym['text']
+                self.adress_name.setText(f'Адрес: {toponym_adress}')
         else:
             print("Ошибка выполнения запроса")
             print("Http статус:", response.status_code, "(", response.reason, ")")
             sys.exit(1)
+
+    def check_post(self):
+        if self.check_postal.checkState() == 2:
+            self.postal_code = True
+        else:
+            self.postal_code = False
+        self.map_update()
 
     def static_map_request(self):
         server = "http://static-maps.yandex.ru/1.x/"
