@@ -124,7 +124,7 @@ class Main_window(PyQt5.QtWidgets.QMainWindow):
             self.postal_code = True
         else:
             self.postal_code = False
-        self.map_update()
+        self.search_pt()
 
     def static_map_request(self):
         server = "http://static-maps.yandex.ru/1.x/"
